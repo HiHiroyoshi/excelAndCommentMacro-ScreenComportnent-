@@ -1,0 +1,95 @@
+Sub CreateSheetsWithData()
+    Dim wsSheetList As Worksheet
+    Dim wsMaster As Worksheet
+    Dim wsSheet2 As Worksheet
+    Dim newWorkbook As Workbook
+    Dim newSheet As Worksheet
+    Dim lastRowSheetList As Long
+    Dim lastColSheetList As Long
+    Dim i As Long, j As Long
+    Dim sheetName As String
+    Dim componentSheet As String
+    Dim identifier As String
+    Dim startPos As String, endPos As String
+    Dim rowCount As Long, colCount As Long
+    Dim targetRange As Range
+    Dim pasteRow As Long
+    Dim partSheetName As String
+    
+    ' 元のシートを設定
+    Set wsSheetList = ThisWorkbook.Sheets("SheetList")
+    Set wsMaster = ThisWorkbook.Sheets("Master")
+    
+    ' SheetListの最終行と列を取得
+    lastRowSheetList = wsSheetList.Cells(wsSheetList.Rows.Count, "C").End(xlUp).Row
+    lastColSheetList = wsSheetList.Cells(2, wsSheetList.Columns.Count).End(xlToLeft).Column
+    
+    ' 新しいブックを作成
+    Set newWorkbook = Workbooks.Add
+    
+    ' シートリストをループ
+    For i = 4 To lastRowSheetList
+        sheetName = wsSheetList.Cells(i, "C").Value
+        If sheetName <> "" Then
+            ' 新しいシートを作成
+            Set newSheet = newWorkbook.Sheets.Add(After:=newWorkbook.Sheets(newWorkbook.Sheets.Count))
+            newSheet.Name = sheetName
+            
+            ' 必要な部品情報を取得
+            For j = 4 To lastColSheetList
+                componentSheet = wsSheetList.Cells(2, j).Value
+                identifier = wsSheetList.Cells(i, j).Value
+                
+                ' 識別番号が入力されている場合、Masterシートを検索
+                If componentSheet <> "" And identifier <> "" Then
+                    Dim k As Long
+                    Dim lastRowMaster As Long
+                    lastRowMaster = wsMaster.Cells(wsMaster.Rows.Count, "C").End(xlUp).Row
+                    
+                    ' Masterシートを検索
+                    For k = 3 To lastRowMaster
+                        ' 部品シート名と識別番号が一致する行を判定
+                        If wsMaster.Cells(k, "C").Value = componentSheet And _
+                           wsMaster.Cells(k, "D").Value = identifier Then
+                            
+                            ' 部品シート名を取得
+                            partSheetName = wsMaster.Cells(k, "C").Value
+                            Set wsSheet2 = ThisWorkbook.Sheets(partSheetName)
+                            ' 対応するデータを取得
+                            startPos = wsMaster.Cells(k, "E").Value
+                            endPos = wsMaster.Cells(k, "H").Value
+                            
+                            ' 範囲をコピー
+                            If startPos <> "" And endPos <> "" Then
+                                On Error Resume Next ' エラー回避用
+                                Set targetRange = wsSheet2.Range(startPos & ":" & endPos)
+                                On Error GoTo 0
+                                
+                                If Not targetRange Is Nothing Then
+                                    ' 貼り付け先の行を取得
+                                    pasteRow = newSheet.Cells(newSheet.Rows.Count, 12).End(xlUp).Row + 1
+                                    
+                                    ' 部品シート名を記載
+                                    newSheet.Cells(pasteRow, 1).Value = "部品シート名: " & partSheetName
+                                    pasteRow = pasteRow + 1
+                                    
+                                    ' データを貼り付け
+                                    targetRange.Copy
+                                    newSheet.Cells(pasteRow, 12).PasteSpecial Paste:=xlPasteAll
+                                End If
+                            Else
+                                Debug.Print "無効な範囲: " & startPos & " - " & endPos
+                            End If
+                        End If
+                    Next k
+                End If
+            Next j
+        End If
+    Next i
+    
+    ' 新しいブックを保存
+    Application.CutCopyMode = False
+    MsgBox "新しいブックが作成されました。" & vbCrLf & "内容を確認してください。", vbInformation
+End Sub
+
+
